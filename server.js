@@ -22,18 +22,11 @@ wss.on("connection", (ws) => {
       console.log("📩 Повідомлення від клієнта:", data);
 
       if (data.role === "broadcaster") {
-        // Клієнт оголошує себе broadcaster'ом
-        if (broadcaster && broadcaster !== ws) {
-          console.warn("⚠️ Попередній broadcaster замінено");
-          broadcaster.close(); // Закриваємо попереднього, якщо є
-        }
         broadcaster = ws;
+        viewers = viewers.filter((v) => v !== ws); // Виключаємо broadcaster із viewers
         console.log("🎥 Broadcaster призначено");
       } else if (data.offer) {
-        if (ws !== broadcaster) {
-          console.warn("⚠️ Offer отримано не від broadcaster'а, ігноруємо");
-          return;
-        }
+        if (ws !== broadcaster) return;
         viewers.forEach((viewer) => {
           if (viewer.readyState === WebSocket.OPEN) {
             viewer.send(JSON.stringify({ offer: data.offer }));
@@ -44,28 +37,16 @@ wss.on("connection", (ws) => {
         if (broadcaster && broadcaster.readyState === WebSocket.OPEN) {
           broadcaster.send(JSON.stringify({ answer: data.answer }));
           console.log("🎥 Відправлено answer broadcaster'у");
-        } else {
-          console.warn("⚠️ Broadcaster недоступний для answer");
         }
       } else if (data.iceCandidate) {
         if (ws === broadcaster) {
-          // ICE кандидат від broadcaster'а до глядачів
           viewers.forEach((viewer) => {
             if (viewer.readyState === WebSocket.OPEN) {
               viewer.send(JSON.stringify({ iceCandidate: data.iceCandidate }));
             }
           });
-          console.log("🧊 Передано iceCandidate від broadcaster'а до глядачів");
-        } else {
-          // ICE кандидат від глядача до broadcaster'а
-          if (broadcaster && broadcaster.readyState === WebSocket.OPEN) {
-            broadcaster.send(
-              JSON.stringify({ iceCandidate: data.iceCandidate })
-            );
-            console.log(
-              "🧊 Передано iceCandidate від глядача до broadcaster'а"
-            );
-          }
+        } else if (broadcaster && broadcaster.readyState === WebSocket.OPEN) {
+          broadcaster.send(JSON.stringify({ iceCandidate: data.iceCandidate }));
         }
       }
     } catch (error) {
@@ -74,20 +55,12 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    if (ws === broadcaster) {
-      broadcaster = null;
-      console.log("❌ Broadcaster відключено");
-    } else {
-      viewers = viewers.filter((viewer) => viewer !== ws);
-      console.log("❌ Viewer відключено, глядачі оновлено");
-    }
+    if (ws === broadcaster) broadcaster = null;
+    viewers = viewers.filter((viewer) => viewer !== ws);
+    console.log("❌ WebSocket закрито");
   });
 
-  // За замовчуванням новий клієнт — глядач, якщо не вказано роль
-  if (ws !== broadcaster) {
-    viewers.push(ws);
-    console.log("👀 Додано нового глядача");
-  }
+  if (!broadcaster || ws !== broadcaster) viewers.push(ws); // Додаємо як viewer, якщо не broadcaster
 });
 
 // Запускаємо сервер
