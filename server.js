@@ -16,40 +16,39 @@ let viewers = [];
 wss.on("connection", (ws) => {
   console.log("🔗 WebSocket підключився");
 
-  // Обробка повідомлень від клієнта
   ws.on("message", (message) => {
+    console.log("📩 Повідомлення від клієнта:", message); // Лог повідомлення
     try {
       const data = JSON.parse(message);
+      console.log("📩 Повідомлення від клієнта:", data);
 
       if (data.offer) {
-        // Якщо це offer, то встановлюємо broadcaster і передаємо його всім глядачам
         broadcaster = ws;
         viewers.forEach((viewer) => {
           viewer.send(JSON.stringify({ offer: data.offer }));
         });
+        console.log("🎥 Передано offer всім глядачам");
       } else if (data.answer) {
-        // Якщо це answer, то надсилаємо його broadcaster'у
         if (broadcaster) {
           broadcaster.send(JSON.stringify({ answer: data.answer }));
         }
+        console.log("🎥 Відправлено answer broadcaster'у");
       } else if (data.iceCandidate) {
-        // Якщо це iceCandidate, передаємо його всім глядачам
         viewers.forEach((viewer) => {
           viewer.send(JSON.stringify({ iceCandidate: data.iceCandidate }));
         });
+        console.log("🧊 Передано iceCandidate всім глядачам");
       }
     } catch (error) {
       console.error("❌ Помилка при парсингу повідомлення:", error);
     }
   });
 
-  // Обробка закриття з'єднання
   ws.on("close", () => {
     viewers = viewers.filter((viewer) => viewer !== ws);
     console.log("❌ WebSocket закрито, глядачі оновлено");
   });
 
-  // Додаємо підключеного глядача до списку
   viewers.push(ws);
 });
 
