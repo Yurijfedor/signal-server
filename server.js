@@ -2,11 +2,17 @@ const fs = require("fs");
 const https = require("https");
 const WebSocket = require("ws");
 
-const server = https.createServer({
-  cert: fs.readFileSync("server.cert"),
-  key: fs.readFileSync("server.key"),
-});
-
+const server = https.createServer(
+  {
+    cert: fs.readFileSync("fullchain.pem"),
+    key: fs.readFileSync("privkey.pem"),
+    passphrase: "yura",
+  },
+  (req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("WebSocket server is running");
+  }
+);
 const wss = new WebSocket.Server({ server });
 
 let broadcaster = null;
